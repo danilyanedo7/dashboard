@@ -1,0 +1,343 @@
+---
+title: "Tetanus infection dashboard"
+output:
+  flexdashboard::flex_dashboard:
+    social: menu
+    vertical_layout: fill
+    theme: yeti
+  html_document:
+    df_print: paged
+---
+
+``` {js}
+// Inverse the color of navigation bar.
+$('.navbar-inverse').removeClass('navbar-inverse').addClass('navbar-default');
+```
+
+
+```{r setup, include=FALSE}
+# Load necessary packages. 
+library(flexdashboard) # Dashboard package
+library(highcharter) # Interactive data visualizations
+library(viridis) # Color gradients
+library(tidyverse) # Metapackge
+library(countrycode) # Converting country names/codes
+library(DT) # Displaying data tables
+library(crosstalk) # Provides interactivity for HTML widgets
+library(plotly) # Interactive data visualizations
+```
+
+```{r include=FALSE}
+#setup warna palet
+tropical_six <- list(
+  "prussian blue"    = "#103851",
+  "hunter green"     = "#316A4F",
+  "satin sheen gold" = "#BAA147",
+  "caramel"          = "#BE7E54",
+  "cadet gray"       = "#8499AA",
+  "caput mortuum"    = "#592822"
+)
+
+tropical_pal <- function(
+    primary = "prussian blue",
+    other = "cadet gray",
+    direction = 1
+) {
+  stopifnot(primary %in% names(tropical_six))
+  
+  function(n) {
+    if (n > 6) warning("Tropical Color Palette only has 6 colors cok.")
+    
+    if (n == 2) {
+      other <- if (!other %in% names(tropical_six)) {
+        other
+      } else {
+        tropical_six[other]
+      }
+      color_list <- c(other, tropical_six[primary])
+    } else {
+      color_list <- tropical_six[1:n]
+    }
+    
+    color_list <- unname(unlist(color_list))
+    if (direction >= 0) color_list else rev(color_list)
+  }
+}
+
+scale_fill_tropical <- function(
+    primary = "prussian blue",
+    other = "cadet gray",
+    direction = 1,
+    ...
+) {
+  ggplot2::discrete_scale(
+    "fill", "tropical",
+    tropical_pal(primary, other, direction),
+    ...
+  )
+}
+
+
+
+#### 
+
+data1 <- read.csv("/Users/edodanilyan/Documents/R project/dashboard/number-of-deaths-from-tetanus.csv")
+data11 <- data1 %>%
+  select(Year, Deaths) %>%
+  group_by(Year) %>%
+  summarise(Deaths = round((sum(Deaths))), 2)
+##
+country_tibble1 <- data1 %>%
+  select(Entity, Deaths) %>%
+  filter(Entity != 'African Region (WHO)',
+         Entity != 'East Asia & Pacific (WB)',
+         Entity != 'Eastern Mediterranean Region (WHO)',
+         Entity != 'Europe & Central Asia (WB)',
+         Entity != 'European Region (WHO)',
+         Entity != 'G20',
+         Entity != 'Latin America & Caribbean (WB)',
+         Entity != 'Middle East & North Africa (WB)',
+         Entity != 'North America (WB)',
+         Entity != 'OECD Countries',
+         Entity != 'Region of the Americas (WHO)',
+         Entity != 'South Asia (WB)',
+         Entity != 'South-East Asia Region (WHO)',
+         Entity != 'Sub-Saharan Africa (WB)',
+         Entity != 'Western Pacific Region (WHO)',
+         Entity != 'World Bank High Income',
+         Entity != 'World Bank Low Income',
+         Entity != 'World Bank Lower Middle Income',
+         Entity != 'World Bank Upper Middle Income',
+         Entity != 'World')%>%
+  group_by(Entity) %>%
+  summarize(Deaths = round((sum(Deaths))), 2) 
+##
+data2 <- read.csv("/Users/edodanilyan/Documents/R project/dashboard/tetanus-deaths-by-age-group.csv")
+data2 <- data2 %>% rename('<5' = 'X.5', 
+                 '>70' = 'X.70', 
+                 '50-69'='X50.69' , 
+                 '15-49'= 'X15.49' , 
+                 '5-14'='X5.14' ) %>%
+  pivot_longer(cols=c('<5', '>70', '50-69', '15-49', '5-14'),
+                    names_to='age_group',
+                    values_to='deaths')
+data2$age_group  <- factor(data2$age_group, levels=c('<5','5-14','15-49', '50-69', '>70'))
+
+age_tibble1 <- data2 %>%
+  group_by(Year, age_group) %>%
+  summarise(deaths = round((sum(deaths))))
+age_tibble1$age_group  <- factor(age_tibble1$age_group, levels=c('<5','5-14','15-49', '50-69', '>70'))
+# Pick color for graph. 
+age_color <- rev(plasma(5))
+
+country_bar1 <- data1 %>%
+  filter(Entity != 'African Region (WHO)',
+         Entity != 'East Asia & Pacific (WB)',
+         Entity != 'Eastern Mediterranean Region (WHO)',
+         Entity != 'Europe & Central Asia (WB)',
+         Entity != 'European Region (WHO)',
+         Entity != 'G20',
+         Entity != 'Latin America & Caribbean (WB)',
+         Entity != 'Middle East & North Africa (WB)',
+         Entity != 'North America (WB)',
+         Entity != 'OECD Countries',
+         Entity != 'Region of the Americas (WHO)',
+         Entity != 'South Asia (WB)',
+         Entity != 'South-East Asia Region (WHO)',
+         Entity != 'Sub-Saharan Africa (WB)',
+         Entity != 'Western Pacific Region (WHO)',
+         Entity != 'World Bank High Income',
+         Entity != 'World Bank Low Income',
+         Entity != 'World Bank Lower Middle Income',
+         Entity != 'World Bank Upper Middle Income',
+         Entity != 'World')%>%
+  group_by(Entity) %>%
+  summarise(deaths = round((sum(Deaths)))) %>%
+  arrange(desc(deaths))
+```
+
+<style>
+.colored {
+  background-color: #FAFAFA;
+}
+</style>
+
+
+Worldwide
+=======================================================================
+
+Column {.tabset .tabset-fade data-width=700 .colored }
+-----------------------------------------------------------------------
+
+### Worldwide deaths from tetanus infection {.no-padding}
+
+```{r}
+highchart() %>% 
+  hc_add_series(data11, hcaes(x = Year, y = Deaths), type = "line") %>%
+  hc_tooltip(crosshairs = TRUE, borderWidth = 1.5, headerFormat = "", pointFormat = paste("Year: <b>{point.x}</b> <br> Deaths: <b>{point.y}</b>")) %>%
+  hc_title(text = "Worldwide cases of death from tetanus") %>% 
+  hc_subtitle(text = "1990-2019") %>%
+  hc_colorAxis(minColor = "yellow", maxColor = "#592822") %>%
+  hc_xAxis(title = list(text = "Year")) %>%
+  hc_yAxis(title = list(text = "Deaths"),
+           allowDecimals = FALSE,
+           plotLines = list(list(
+             color = "black", width = 1, dashStyle = "Dash", 
+             value = mean(data11$Deaths),
+             label = list(text = "Mean = 667745.9", 
+                          style = list(color = "black"))))) %>%
+  hc_legend(enabled = FALSE) 
+```
+
+
+### Worldwide deaths from tetanus infection by age {.no-padding}
+
+```{r}
+highchart() %>% 
+  hc_add_series(age_tibble1, hcaes(x = Year, y = deaths, group = age_group), type = "line", color = age_color) %>%
+  hc_tooltip(crosshairs = TRUE, borderWidth = 1.5, headerFormat = "", pointFormat = paste("Year: <b>{point.x}</b> <br>","Age: <b>{point.age_group}</b><br>", "Deaths: <b>{point.y}</b>")) %>%
+  hc_title(text = "Worldwide deaths from tetanus infection by age") %>% 
+  hc_subtitle(text = "1990-2019") %>%
+  hc_xAxis(title = list(text = "Year")) %>%
+  hc_yAxis(title = list(text = "Deaths"),
+           allowDecimals = FALSE,
+           plotLines = list(list(
+             color = "black", width = 1, dashStyle = "Dash",
+             value = mean(data11$Deaths),
+             label = list(text = "Mean = 667745.9", 
+                          style = list(color = 'black'))))) %>%
+  hc_legend(element_blank())
+```
+Column {data-width=300}
+-----------------------------------------------------------------------
+
+### Total deaths <font size='1'> (1990-2019) </font>
+```{r}
+
+total_deaths <- round(sum(data11$Deaths), 2)
+
+valueBox(total_deaths, icon = "fa-plus", color = '#592822')
+```
+### Worldwide deaths by age {.no-title .no-padding .colored }
+```{r}
+pie_age1 <- data2 %>%
+  group_by(age_group) %>%
+  summarise(deaths = round((sum(deaths)))) %>%
+  arrange(deaths)
+pie_age1$age_group  <- factor(pie_age1$age_group, levels=c('<5','5-14','15-49', '50-69', '>70'))
+highchart() %>% 
+  hc_add_series(pie_age1, hcaes(x = age_group, y = deaths, 
+                               color = age_color), type = "pie") %>%
+  hc_tooltip(borderWidth = 1.5, headerFormat = "", pointFormat = paste("Age: <b>{point.age_group} ({point.percentage:.1f}%)</b> <br> Deaths: <b>{point.y}</b>")) %>% 
+  hc_title(text = "Worldwide deaths by age") %>% 
+  hc_subtitle(text = "1990-2019") %>%
+  hc_plotOptions(pie = list(dataLabels = list(distance = 15, 
+                                              style = list(fontSize = 10)), 
+                            size = 180))
+```
+
+Country
+=======================================================================
+
+Column {.tabset .tabset-fade data-width=700 .colored }
+-----------------------------------------------------------------------
+### Deaths by country and age
+```{r}
+country_bar_age1 <- data2 %>%
+  drop_na() %>%
+  filter(Entity != 'African Region (WHO)',
+         Entity != 'East Asia & Pacific (WB)',
+         Entity != 'Eastern Mediterranean Region (WHO)',
+         Entity != 'Europe & Central Asia (WB)',
+         Entity != 'European Region (WHO)',
+         Entity != 'G20',
+         Entity != 'Latin America & Caribbean (WB)',
+         Entity != 'Middle East & North Africa (WB)',
+         Entity != 'North America (WB)',
+         Entity != 'OECD Countries',
+         Entity != 'Region of the Americas (WHO)',
+         Entity != 'South Asia (WB)',
+         Entity != 'South-East Asia Region (WHO)',
+         Entity != 'Sub-Saharan Africa (WB)',
+         Entity != 'Western Pacific Region (WHO)',
+         Entity != 'World Bank High Income',
+         Entity != 'World Bank Low Income',
+         Entity != 'World Bank Lower Middle Income',
+         Entity != 'World Bank Upper Middle Income',
+         Entity != 'World')%>%
+  group_by(Entity, age_group) %>%
+  summarise(deaths = round((sum(deaths))))
+country_bar_age1$age_group  <- factor(country_bar_age1$age_group, levels=c('<5','5-14','15-49', '50-69', '>70'))
+# Create interactive bar plot.
+highchart() %>%
+  hc_add_series(country_bar_age1, hcaes(x = Entity, y = deaths, group = age_group), type = "bar", color = age_color)  %>% 
+  hc_tooltip(borderWidth = 1.5, pointFormat = paste("Age: <b>{point.age} ({point.percentage:.1f}%)</b> <br> Deaths: <b>{point.y}</b>")) %>%
+  hc_title(text = "Deaths by country and age") %>% 
+  hc_subtitle(text = "1990-2019") %>%
+  hc_xAxis(categories = country_tibble1$Entity,
+           labels = list(step = 1),
+           min = 0, max = 30,
+           scrollbar = list(enabled = TRUE)) %>%
+  hc_yAxis(title = list(text = "Percent of total suicides")) %>%
+  hc_plotOptions(bar = list(stacking = "percent", 
+                            pointPadding = 0, groupPadding = 0, borderWidth = 0.5))
+```
+Column {.tabset .tabset-fade data-width=700 .colored }
+-----------------------------------------------------------------------
+### Map {.no-title .no-padding}
+```{r}
+highchart() %>%
+  hc_add_series_map(worldgeojson, country_tibble1, value = "Deaths", 
+                    joinBy = c('name','Entity'))  %>% 
+  # hc_colors(cols) %>%
+  # hc_colorAxis(dataClasses = color_classes(c(seq(0, 1500000, by = 250000)))) %>% 
+  hc_colorAxis(stops = color_stops(8, c("#fee08b","#cc0000"))) %>% 
+  hc_title(text = "Deaths from tetanus by country") %>% 
+  hc_subtitle(text = "1990-2019") %>%
+  hc_tooltip(borderWidth = 1.5, headerFormat = "", valueSuffix = " deaths")
+
+
+```
+
+### Barchart {.no-title .no-padding}
+```{r}
+highchart() %>%
+  hc_add_series(country_bar1, hcaes(x = Entity, y = deaths), type = "bar")  %>%
+  hc_colorAxis(stops = color_stops(8, c("#fee08b","#cc0000"))) %>% 
+  hc_tooltip(borderWidth = 1.5, 
+             pointFormat = paste("Reported deaths: <b>{point.y}</b>")) %>%
+  hc_legend(enabled = FALSE) %>%
+  hc_title(text = "Deaths by country") %>% 
+  hc_subtitle(text = "1990-2019") %>% 
+  hc_xAxis(
+  categories = country_bar1$Entity, labels = list(step = 1),
+       min = 0, max = 30,
+        scrollbar = list(enabled = TRUE)) %>%
+  hc_yAxis(title = list(text = "Deaths")) %>%
+  hc_plotOptions(bar = list(stacking = "normal", 
+                            pointPadding = 0, groupPadding = 0, borderWidth = 0.5))
+```
+
+About {data-icon="fa-info-circle"}
+=======================================================================
+
+Column {data-width=500}
+-----------------------------------------------------------------------
+
+### { .colored }
+
+**Author information:**
+
+To see my data visualization portfolio, please visit:
+
+https://edodanilyan.com 
+
+Column {data-width=500}
+-----------------------------------------------------------------------
+
+### { .colored }
+
+**References:**  
+
+The data set used to create the dashboard can be found at:   
+https://ourworldindata.org/tetanus
