@@ -16,15 +16,13 @@ $('.navbar-inverse').removeClass('navbar-inverse').addClass('navbar-default');
 
 
 ```{r setup, include=FALSE}
-# Load necessary packages. 
-library(flexdashboard) # Dashboard package
-library(highcharter) # Interactive data visualizations
-library(viridis) # Color gradients
-library(tidyverse) # Metapackge
-library(countrycode) # Converting country names/codes
-library(DT) # Displaying data tables
-library(crosstalk) # Provides interactivity for HTML widgets
-library(plotly) # Interactive data visualizations
+library(flexdashboard) 
+library(highcharter) 
+library(viridis) 
+library(tidyverse) 
+library(countrycode) 
+library(crosstalk) 
+library(plotly) 
 ```
 
 ```{r include=FALSE}
