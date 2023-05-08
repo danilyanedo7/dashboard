@@ -276,7 +276,7 @@ highchart() %>%
            labels = list(step = 1),
            min = 0, max = 30,
            scrollbar = list(enabled = TRUE)) %>%
-  hc_yAxis(title = list(text = "Percent of total suicides")) %>%
+  hc_yAxis(title = list(text = "Percent of total deaths")) %>%
   hc_plotOptions(bar = list(stacking = "percent", 
                             pointPadding = 0, groupPadding = 0, borderWidth = 0.5))
 ```
